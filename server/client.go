@@ -5,7 +5,20 @@ import (
 	// "strings"
 )
 
-func (c *Client) Send(message string) (err error) {
+func (c *Client) SendSystemMessage(message string) (err error) {
+	err = c.SendRaw(fmt.Sprintf("[Server]: %s\n", message))
+	return
+}
+
+func (c *Client) SendMessageFromUser(message string, from *Client) (err error) {
+	err = c.SendRaw(fmt.Sprintf("[%s]: %s\n", from.Name, message))
+	return
+}
+
+// should I have a dedicated function to format messages befoer they get sent to the user?
+// this would make consistency and updating formatting easier, as well as possibly allowing
+// custom formatting via a configuration option.
+func (c *Client) SendRaw(message string) (err error) {
 	_, err = c.Socket.Write([]byte(message))
 	return
 // 	if err != nil {
@@ -14,7 +27,7 @@ func (c *Client) Send(message string) (err error) {
 }
 
 func (c *Client) Kick(reason string) {
-	c.Send(fmt.Sprintf("You where kicked! Reason: %s\n", reason))
+	//c.Send(fmt.Sprintf("You where kicked! Reason: %s\n", reason))
 	c.Socket.Close()
 }
 
