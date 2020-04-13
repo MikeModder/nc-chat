@@ -27,8 +27,10 @@ var (
 )
 
 type Server struct {
+	StartTime time.Time
 	Clients []*Client
 	ServerUser *Client
+	CommandHandler *CommandHandler
 	// Server 
 }
 
@@ -40,3 +42,17 @@ type Client struct {
 	Status int
 	Mode int // permissions
 }
+
+type CommandHandler struct {
+	Commands map[string]*Command
+	// Aliases map[string]*Command
+}
+
+type Command struct {
+	Name string
+	Description string
+	Mode int
+	Run CommandRunFunc
+}
+
+type CommandRunFunc func(*Server, *Client, []string)

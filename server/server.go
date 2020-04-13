@@ -16,6 +16,7 @@ func NewServer() Server {
 			Status: 1,
 			Mode: ModeAdmin,
 		},
+		CommandHandler: NewCommandHandler(),
 	}
 }
 
@@ -24,6 +25,9 @@ func (s *Server) Run(address string, port int) {
 	if err != nil {
 		panic(err)
 	}
+
+	// Register commands into command handler
+	RegisterCommands(s.CommandHandler)
 
 	for {
 		nc, err := server.Accept()
@@ -37,8 +41,9 @@ func (s *Server) Run(address string, port int) {
 		s.AddClient(&Client{
 			Socket: nc,
 			LoginTime: time.Now(),
-			Name: fmt.Sprintf("%x", crc32.ChecksumIEEE([]byte(nc.RemoteAddr().String()))), // TODO: how heavy is this? it's on
+			Name: fmt.Sprintf("%X", crc32.ChecksumIEEE([]byte(nc.RemoteAddr().String()))), // TODO: how heavy is this? it's on
 			Status: StatusOnline,
+			Mode: ModeUser,
 		})
 	}
 }
@@ -49,7 +54,7 @@ func (s *Server) AddClient(c *Client) {
 	// c.Status = 1
 
 	c.SendSystemMessage("Welcome to nc-chat server!")
-	s.SendToAll(fmt.Sprintf("%s joined\n", c.Name), s.ServerUser)
+	s.Broadcast(c.Name + " joined")
 
 	s.Clients = append(s.Clients, c)
 	go s.HandleClient(c)
@@ -64,7 +69,7 @@ func (s *Server) RemoveClient(c *Client, reason string) {
 	for i = range s.Clients {
 		if s.Clients[i] == c {
 			s.Clients = append(s.Clients[:i], s.Clients[i+1:]...)
-			s.SendToAll(fmt.Sprintf("%s left (Reason: %s)\n", c.Name, reason), s.ServerUser)
+			s.Broadcast(fmt.Sprintf("%s left (Reason: %s)", c.Name, reason))
 
 			break
 		}
@@ -101,39 +106,16 @@ func (s *Server) HandleClient(c *Client) {
 func (s *Server) HandleCommand(invoker *Client, command string, args []string) {
 	command = reNewline.ReplaceAllString(command, "")
 	// fmt.Println(command)
-	
-	switch (command) {
-	case "nick":
-		nick := reNewline.ReplaceAllString(args[0], "")
-		if len(nick) > 24 {
-			nick = nick[0:23]
-		}
 
-		if nick == "" {
-			nick = "Unset"
-		}
+	ok, err := s.CommandHandler.ExecuteCommand(s, invoker, command, args)
+	if !ok {
+		invoker.SendSystemMessage("comand returned error: " + err)
+	}
+}
 
-		if nick == "System" {
-			nick = "Not System"
-			invoker.SendSystemMessage("Nice try, bud")
-			//invoker.Send("[System] Nice try, bud\n")
-		}
-
-		s.SendToAll(fmt.Sprintf("%s is now %s", invoker.Name, nick), s.ServerUser)
-		invoker.Name = nick
-		break
-	case "aboutme":
-		invoker.SendMessageFromUser(fmt.Sprintf("You are %s logged in from %s for %s", invoker.Name, invoker.Socket.RemoteAddr(), time.Since(invoker.LoginTime).String()), s.ServerUser)
-		break
-
-	case "whisper":
-		s.SendToUserByName(args[0], strings.Join(args[1:], " "), invoker)
-		break
-
-	default:
-		// invoker.Send("[System] Unknown command!\n")
-		invoker.SendSystemMessage("Unkown command!")
-		break
+func (s *Server) Broadcast(message string) {
+	for i := len(s.Clients)-1; i >= 0; i-- {
+		s.Clients[i].SendSystemMessage(message)
 	}
 }
 
@@ -154,6 +136,9 @@ func (s *Server) SendToAll(message string, from *Client) {
 	}
 }
 
+// TODO: SendToUserByName assumes it's being invoked with the whisper command
+// a dedicated function for whispering would probably be better
+// make the whisper function a wrapper on top of this? but that's 3(?) layers of abstraction already
 func (s *Server) SendToUserByName(name string, message string, from *Client) {
 	message = reNewline.ReplaceAllString(message, "")
 
@@ -163,7 +148,7 @@ func (s *Server) SendToUserByName(name string, message string, from *Client) {
 			// err := c.SendMessageFromUser(message, from)
 			if err != nil {
 				from.SendSystemMessage("Failed to send whisper")
-				s.RemoveClient(c, "failed to send whisper to client")
+				// s.RemoveClient(c, "failed to send whisper to client")
 			}
 			return
 		}
