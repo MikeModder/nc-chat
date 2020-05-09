@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// RegisterCommands is called by the *server.Start() function to register commands
 func RegisterCommands(c *CommandHandler) {
 	c.AddCommand("nick", "Set your nickname", ModeUser, nickCmd)
 	c.AddCommand("aboutme", "information about user", ModeUser, aboutmeCmd)

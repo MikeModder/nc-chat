@@ -26,6 +26,7 @@ var (
 	reNewline = regexp.MustCompile(`\r?\n`)
 )
 
+// Server ...
 type Server struct {
 	StartTime time.Time
 	Clients []*Client
@@ -34,7 +35,7 @@ type Server struct {
 	// Server 
 }
 
-
+// Client ...
 type Client struct {
 	Socket net.Conn
 	LoginTime time.Time
@@ -43,11 +44,13 @@ type Client struct {
 	Mode int // permissions
 }
 
+// CommandHandler ...
 type CommandHandler struct {
 	Commands map[string]*Command
 	// Aliases map[string]*Command
 }
 
+// Command ...
 type Command struct {
 	Name string
 	Description string
@@ -55,4 +58,5 @@ type Command struct {
 	Run CommandRunFunc
 }
 
+// CommandRunFunc ...
 type CommandRunFunc func(*Server, *Client, []string)

@@ -8,6 +8,7 @@ import (
 	"hash/crc32"
 )
 
+// NewServer creates a new server with a default command handler and System user
 func NewServer() Server {
 	return Server{
 		ServerUser: &Client{
@@ -20,6 +21,7 @@ func NewServer() Server {
 	}
 }
 
+// Run starts up the server, and handles new connections
 func (s *Server) Run(address string, port int) {
 	server, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP(address), Port: port})
 	if err != nil {
@@ -35,8 +37,6 @@ func (s *Server) Run(address string, port int) {
 			continue
 		}
 
-		
-
 		// s.AddClient(&Client{Socket: nc})
 		s.AddClient(&Client{
 			Socket: nc,
@@ -48,6 +48,7 @@ func (s *Server) Run(address string, port int) {
 	}
 }
 
+// AddClient adds the client to the master list and starts a goroutine to handle their socket
 func (s *Server) AddClient(c *Client) {
 	// c.LoginTime = time.Now()
 	// c.Name = "Unset" // TODO: set a a randomized name, to avoid confusion
@@ -60,6 +61,7 @@ func (s *Server) AddClient(c *Client) {
 	go s.HandleClient(c)
 }
 
+// RemoveClient closes the passed Client's socket and notifies the other users, optionally with a message
 func (s *Server) RemoveClient(c *Client, reason string) {
 	c.Socket.Close()
 
@@ -77,6 +79,7 @@ func (s *Server) RemoveClient(c *Client, reason string) {
 
 }
 
+// HandleClient is run as a goroutine for each connected client. It handles reading from the socket and determining if a command needs to be run
 func (s *Server) HandleClient(c *Client) {
 	buf := make([]byte, 2048)
 
@@ -103,6 +106,7 @@ func (s *Server) HandleClient(c *Client) {
 	}
 }
 
+// HandleCommand doesn't directly handle the command, rather it strips newlines and shows a neat error message
 func (s *Server) HandleCommand(invoker *Client, command string, args []string) {
 	command = reNewline.ReplaceAllString(command, "")
 	// fmt.Println(command)
@@ -113,12 +117,14 @@ func (s *Server) HandleCommand(invoker *Client, command string, args []string) {
 	}
 }
 
+// Broadcast sends a (system) message to all connected clients
 func (s *Server) Broadcast(message string) {
 	for i := len(s.Clients)-1; i >= 0; i-- {
 		s.Clients[i].SendSystemMessage(message)
 	}
 }
 
+// SendToAll sends a message to all clients, originating from another client
 func (s *Server) SendToAll(message string, from *Client) {
 	// fmt.Println(message)
 	for _, c := range s.Clients {
@@ -139,6 +145,7 @@ func (s *Server) SendToAll(message string, from *Client) {
 // TODO: SendToUserByName assumes it's being invoked with the whisper command
 // a dedicated function for whispering would probably be better
 // make the whisper function a wrapper on top of this? but that's 3(?) layers of abstraction already
+// SendToUserByName sends a whisper to a user with a given username, from another client
 func (s *Server) SendToUserByName(name string, message string, from *Client) {
 	message = reNewline.ReplaceAllString(message, "")
 
