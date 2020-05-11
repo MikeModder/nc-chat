@@ -30,6 +30,8 @@ func (s *Server) Run(address string, port int) {
 
 	// Register commands into command handler
 	RegisterCommands(s.CommandHandler)
+	// Initialize database
+	InitDB()
 
 	for {
 		nc, err := server.Accept()
@@ -41,20 +43,17 @@ func (s *Server) Run(address string, port int) {
 		s.AddClient(&Client{
 			Socket: nc,
 			LoginTime: time.Now(),
-			Name: fmt.Sprintf("%X", crc32.ChecksumIEEE([]byte(nc.RemoteAddr().String()))), // TODO: how heavy is this? it's on
+			Name: fmt.Sprintf("%X", crc32.ChecksumIEEE([]byte(nc.RemoteAddr().String()))), // TODO: how heavy is this? it's only run once on first connection
 			Status: StatusOnline,
-			Mode: ModeUser,
+			Mode: ModeUnauthenticated,
 		})
 	}
 }
 
 // AddClient adds the client to the master list and starts a goroutine to handle their socket
 func (s *Server) AddClient(c *Client) {
-	// c.LoginTime = time.Now()
-	// c.Name = "Unset" // TODO: set a a randomized name, to avoid confusion
-	// c.Status = 1
-
 	c.SendSystemMessage("Welcome to nc-chat server!")
+	c.SendSystemMessage("Be sure to login or register with /login or /register respectively!")
 	s.Broadcast(c.Name + " joined")
 
 	s.Clients = append(s.Clients, c)
@@ -98,10 +97,14 @@ func (s *Server) HandleClient(c *Client) {
 			// Get ready to run a command
 			split := strings.Split(str, " ")
 			s.HandleCommand(c, strings.TrimPrefix(split[0], "/"), split[1:])
-			// buf = make([]byte, 2048)
 			continue
 		}
 
+		// Do this check after the command handler, since the user has to be able to log in
+		if c.Mode < ModeUser {
+			c.SendSystemMessage("You are either not logged in or have been restricted!")
+			continue
+		}
 		s.SendToAll(str, c)
 	}
 }
@@ -109,7 +112,11 @@ func (s *Server) HandleClient(c *Client) {
 // HandleCommand doesn't directly handle the command, rather it strips newlines and shows a neat error message
 func (s *Server) HandleCommand(invoker *Client, command string, args []string) {
 	command = reNewline.ReplaceAllString(command, "")
-	// fmt.Println(command)
+
+	// Strupt newlines from args as well
+	for i := 0; i < len(args)-1; i++ {
+		args[i] = reNewline.ReplaceAllString(args[i], "")
+	}
 
 	ok, err := s.CommandHandler.ExecuteCommand(s, invoker, command, args)
 	if !ok {
@@ -126,7 +133,6 @@ func (s *Server) Broadcast(message string) {
 
 // SendToAll sends a message to all clients, originating from another client
 func (s *Server) SendToAll(message string, from *Client) {
-	// fmt.Println(message)
 	for _, c := range s.Clients {
 		if c == from {
 			continue
@@ -135,7 +141,6 @@ func (s *Server) SendToAll(message string, from *Client) {
 		message = reNewline.ReplaceAllString(message, "")
 
 		err := c.SendMessageFromUser(message, from)
-		// err := c.Send(fmt.Sprintf("[%s]: %s\n", from.Name, message))
 		if err != nil {
 			s.RemoveClient(c, "failed to send message to client")
 		}

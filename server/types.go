@@ -15,8 +15,9 @@ const (
 
 	// User modes
 	ModeRestricted = 0 // Do we need this?
-	ModeUser = 1
-	ModeAdmin = 2
+	ModeUnauthenticated = 1
+	ModeUser = 2
+	ModeAdmin = 40
 	ModeOP = 99
 )
 
@@ -39,9 +40,18 @@ type Server struct {
 type Client struct {
 	Socket net.Conn
 	LoginTime time.Time
+	ID int
 	Name string
+	Password string
 	Status int
 	Mode int // permissions
+}
+
+type User struct {
+	ID int
+	Name string
+	Password string
+	Mode int
 }
 
 // CommandHandler ...
