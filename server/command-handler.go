@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// NewCommandHandler returns a new command handler, with a help command
 func NewCommandHandler() *CommandHandler {
 	c := &CommandHandler{
 		Commands: make(map[string]*Command),
@@ -12,6 +13,7 @@ func NewCommandHandler() *CommandHandler {
 	return c
 }
 
+// ExecuteCommand checks for command existence and permissions, then executes it
 func (c *CommandHandler) ExecuteCommand(s *Server, i *Client, cmd string, args []string) (bool, string) {
 	// TODO: check for aliases too, once everything is working
 	if _, ok := c.Commands[cmd]; ok {
@@ -30,6 +32,7 @@ func (c *CommandHandler) ExecuteCommand(s *Server, i *Client, cmd string, args [
 
 }
 
+// AddCommand adds a command with the supplied details to the handler
 func (c *CommandHandler) AddCommand(name, description string, mode int, run CommandRunFunc) {
 	c.Commands[name] = &Command{
 		Name: name,
