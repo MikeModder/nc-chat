@@ -73,19 +73,10 @@ func GetUserByID(id int) (User, error) {
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(id)
-	if err != nil {
-		return User{}, err
-	}
+	row := stmt.QueryRow(id)
 
 	var u User
-	// Do we really need a for loop here? There should only ever be one result...
-	for rows.Next() {
-		err = rows.Scan(&u.ID, &u.Name, &u.Password, &u.Mode)
-		if err != nil {
-			return User{}, err
-		}
-	}
+	row.Scan(&u.ID, &u.Name, &u.Password, &u.Mode)
 
 	return u, nil
 }
@@ -101,15 +92,10 @@ func GetUserByName(name string) (User, error) {
 		return User{}, err
 	}
 
-	rows, err := stmt.Query(name)
-	if err != nil {
-		return User{}, err
-	}
+	row := stmt.QueryRow(name)
 
 	var u User
-	for rows.Next() {
-		rows.Scan(&u.ID, &u.Name, &u.Password, &u.Mode)
-	}
+	row.Scan(&u.ID, &u.Name, &u.Password, &u.Mode)
 
 	return u, nil
 }
