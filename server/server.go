@@ -133,16 +133,18 @@ func (s *Server) Broadcast(message string) {
 
 // SendToAll sends a message to all clients, originating from another client
 func (s *Server) SendToAll(message string, from *Client) {
-	for _, c := range s.Clients {
-		if c == from {
+	for i := len(s.Clients)-1; i >= 0; i-- {
+		// Don't forward messages to restricted or unauthorized users
+		if s.Clients[i].Mode < ModeUser { continue; }
+		if s.Clients[i] == from {
 			continue
 		}
 
 		message = reNewline.ReplaceAllString(message, "")
 
-		err := c.SendMessageFromUser(message, from)
+		err := s.Clients[i].SendMessageFromUser(message, from)
 		if err != nil {
-			s.RemoveClient(c, "failed to send message to client")
+			s.RemoveClient(s.Clients[i], "failed to send message to client")
 		}
 	}
 }
@@ -154,9 +156,15 @@ func (s *Server) SendToAll(message string, from *Client) {
 func (s *Server) SendToUserByName(name string, message string, from *Client) {
 	message = reNewline.ReplaceAllString(message, "")
 
-	for _, c := range s.Clients {
-		if c.Name == name {
-			err := c.SendRaw(fmt.Sprintf("[%s -> you]: %s\n", from.Name, message)) // TODO: revise this to use a wrapper function
+	for i := len(s.Clients)-1; i >= 0; i-- {
+		if s.Clients[i].Name == name {
+			// Don't allow sending whispers to restricted/unauthorized accounts
+			if s.Clients[i].Mode < ModeUser {
+				from.SendSystemMessage("That user is either restricted or not signed in, so you cannot send them a whisper.")
+				return
+			}
+
+			err := s.Clients[i].SendRaw(fmt.Sprintf("[%s -> you]: %s\n", from.Name, message)) // TODO: revise this to use a wrapper function
 			// err := c.SendMessageFromUser(message, from)
 			if err != nil {
 				from.SendSystemMessage("Failed to send whisper")
