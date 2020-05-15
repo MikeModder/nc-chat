@@ -46,6 +46,16 @@ func aboutmeCmd(s *Server, i *Client, _ []string) {
 
 func whisperCmd(s *Server, i *Client, args []string) {
 	// TODO: make this better
+	if len(args) < 2 {
+		i.SendSystemMessage("Command format: /whisper <user> <message>")
+		return
+	}
+
+	// Prevent user from sending themselves a whisper
+	if i.Name == args[0] {
+		i.SendSystemMessage("You can't send a whisper to yourself!")
+		return
+	}
 	s.SendToUserByName(args[0], strings.Join(args[1:], " "), i)
 }
 
